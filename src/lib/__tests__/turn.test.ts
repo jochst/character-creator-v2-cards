@@ -129,3 +129,40 @@ describe("runTurn", () => {
     expect(events[0]).toMatchObject({ type: "error", characterId: "a" });
   });
 });
+
+describe("connection retries", () => {
+  afterEach(() => vi.unstubAllGlobals());
+  const provider = { id: "conn-test", name: "Test", baseUrl: "http://x/v1", rateLimit: { perSecond: 1000, burst: 1000 } };
+  const req: TurnRequest = {
+    turnId: "c1",
+    characters: [{ id: "a", name: "Aria", persona: "" }],
+    defaults: { providerId: "conn-test", model: "m1" },
+    order: "parallel",
+    log: [{ id: "u", speaker: "user", content: "Hi" }],
+  };
+  const connectError = (code: string) => Object.assign(new TypeError("fetch failed"), { cause: { code } });
+
+  it("retries a connect timeout and succeeds", async () => {
+    let calls = 0;
+    vi.stubGlobal("fetch", async () => {
+      if (++calls === 1) throw connectError("UND_ERR_CONNECT_TIMEOUT");
+      return sse([delta("ok"), "data: [DONE]\n\n"]);
+    });
+    const events: TurnEvent[] = [];
+    await runTurn(req, (e) => events.push(e), new AbortController().signal, { resolve: () => provider });
+    expect(calls).toBe(2);
+    expect(events.some((e) => e.type === "done" && e.content === "ok")).toBe(true);
+  });
+
+  it("gives up after two retries and names the cause", async () => {
+    let calls = 0;
+    vi.stubGlobal("fetch", async () => {
+      calls++;
+      throw connectError("ECONNRESET");
+    });
+    const events: TurnEvent[] = [];
+    await runTurn(req, (e) => events.push(e), new AbortController().signal, { resolve: () => provider });
+    expect(calls).toBe(3);
+    expect(events).toContainEqual({ type: "error", characterId: "a", error: "fetch failed (ECONNRESET)", content: "" });
+  });
+});

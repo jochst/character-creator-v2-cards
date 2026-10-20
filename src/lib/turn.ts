@@ -78,7 +78,7 @@ export async function runTurn(req: TurnRequest, send: (e: TurnEvent) => void, si
         send({ type: "done", characterId: character.id, content, firstTokenMs, totalMs: now() - started, stopped: true });
         return content || undefined;
       }
-      send({ type: "error", characterId: character.id, error: e instanceof Error ? e.message : "Request failed.", content });
+      send({ type: "error", characterId: character.id, error: describeError(e), content });
       return content || undefined;
     }
   };
@@ -99,4 +99,12 @@ export async function runTurn(req: TurnRequest, send: (e: TurnEvent) => void, si
     active.delete(req.turnId);
     send({ type: "end" });
   }
+}
+
+/** fetch() reports network failures as a bare "fetch failed"; the cause says what actually went wrong. */
+function describeError(e: unknown): string {
+  if (!(e instanceof Error)) return "Request failed.";
+  const cause = e.cause as { code?: string; message?: string } | undefined;
+  const detail = cause?.code || cause?.message;
+  return detail && !e.message.includes(detail) ? `${e.message} (${detail})` : e.message;
 }

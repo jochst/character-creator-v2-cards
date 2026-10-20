@@ -21,6 +21,8 @@ With no keys set, the "Local" provider points at the mock (`http://localhost:399
 - Characters pick a provider and model; blank fields use the scene defaults. Keys live only on the server in env vars.
 - `DELETE /api/turn?turnId=…&characterId=…` stops one character (or the whole turn without `characterId`); text that already arrived is kept.
 
+Behind an HTTPS proxy, start Node with `NODE_USE_ENV_PROXY=1` so the server's `fetch` uses it.
+
 The limiter is in-memory, so it's per server process. A multi-instance deploy (e.g. Vercel) would need a shared store like Redis.
 
 ## Scripts
