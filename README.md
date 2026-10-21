@@ -1,4 +1,4 @@
-# character-creator-v2-cards
+# diff-llms-characters
 
 A group chat where every AI character answers on its own LLM stream, each with its own provider and model.
 
